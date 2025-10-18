@@ -84,6 +84,33 @@ class FreshRSSClient {
     }
   }
 
+  /**
+   * Convert a date to a Fever API item ID (microseconds since epoch)
+   * Fever API uses item IDs that are timestamps in microseconds
+   */
+  private dateToFeverItemId(date: Date): string {
+    // Convert milliseconds to microseconds (multiply by 1000)
+    return (date.getTime() * 1000).toString();
+  }
+
+  /**
+   * Get the date/time for X hours ago
+   */
+  private getHoursAgo(hours: number): Date {
+    const date = new Date();
+    date.setHours(date.getHours() - hours);
+    return date;
+  }
+
+  /**
+   * Get the date/time for X days ago
+   */
+  private getDaysAgo(days: number): Date {
+    const date = new Date();
+    date.setDate(date.getDate() - days);
+    return date;
+  }
+
   // Get feed subscriptions
   async getSubscriptions() {
     return this.request('', 'GET', { feeds: '' });
@@ -121,7 +148,97 @@ class FreshRSSClient {
 
     return this.request<FreshRSSResponse>('', 'GET', {
       items: '',
-      feed_id: numericFeedId
+      feed_ids: numericFeedId
+    });
+  }
+
+  /**
+   * Get items from the last X hours
+   */
+  async getItemsFromLastHours(hours: number): Promise<FreshRSSResponse> {
+    const sinceDate = this.getHoursAgo(hours);
+    const sinceId = this.dateToFeverItemId(sinceDate);
+    
+    return this.request<FreshRSSResponse>('', 'GET', {
+      items: '',
+      since_id: sinceId
+    });
+  }
+
+  /**
+   * Get items from the last X days
+   */
+  async getItemsFromLastDays(days: number): Promise<FreshRSSResponse> {
+    const sinceDate = this.getDaysAgo(days);
+    const sinceId = this.dateToFeverItemId(sinceDate);
+    
+    return this.request<FreshRSSResponse>('', 'GET', {
+      items: '',
+      since_id: sinceId
+    });
+  }
+
+  /**
+   * Get items from a specific feed from the last X hours
+   */
+  async getFeedItemsFromLastHours(feedId: number | string, hours: number): Promise<FreshRSSResponse> {
+    const numericFeedId = typeof feedId === 'string' ? parseInt(feedId, 10) : feedId;
+    const sinceDate = this.getHoursAgo(hours);
+    const sinceId = this.dateToFeverItemId(sinceDate);
+    
+    return this.request<FreshRSSResponse>('', 'GET', {
+      items: '',
+      feed_ids: numericFeedId,
+      since_id: sinceId
+    });
+  }
+
+  /**
+   * Get items from a specific feed from the last X days
+   */
+  async getFeedItemsFromLastDays(feedId: number | string, days: number): Promise<FreshRSSResponse> {
+    const numericFeedId = typeof feedId === 'string' ? parseInt(feedId, 10) : feedId;
+    const sinceDate = this.getDaysAgo(days);
+    const sinceId = this.dateToFeverItemId(sinceDate);
+    
+    return this.request<FreshRSSResponse>('', 'GET', {
+      items: '',
+      feed_ids: numericFeedId,
+      since_id: sinceId
+    });
+  }
+
+  /**
+   * Get items from a specific date range
+   */
+  async getItemsFromDateRange(sinceDate: Date, untilDate?: Date): Promise<FreshRSSResponse> {
+    const sinceId = this.dateToFeverItemId(sinceDate);
+    
+    const params: any = {
+      items: '',
+      since_id: sinceId
+    };
+    
+    // If untilDate is specified, use max_id to limit the range
+    if (untilDate) {
+      params.max_id = this.dateToFeverItemId(untilDate);
+    }
+    
+    return this.request<FreshRSSResponse>('', 'GET', params);
+  }
+
+  /**
+   * Get items from a group (category) from the last X days
+   */
+  async getGroupItemsFromLastDays(groupId: number | string, days: number): Promise<FreshRSSResponse> {
+    const numericGroupId = typeof groupId === 'string' ? parseInt(groupId, 10) : groupId;
+    const sinceDate = this.getDaysAgo(days);
+    const sinceId = this.dateToFeverItemId(sinceDate);
+    
+    return this.request<FreshRSSResponse>('', 'GET', {
+      items: '',
+      group_ids: numericGroupId,
+      since_id: sinceId
     });
   }
 
@@ -224,6 +341,88 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
           },
         },
         required: ["feed_id"],
+      },
+    },
+    {
+      name: "get_items_last_hours",
+      description: "Get items from the last X hours",
+      inputSchema: {
+        type: "object",
+        properties: {
+          hours: {
+            type: "number",
+            description: "Number of hours to look back",
+          },
+        },
+        required: ["hours"],
+      },
+    },
+    {
+      name: "get_items_last_days",
+      description: "Get items from the last X days",
+      inputSchema: {
+        type: "object",
+        properties: {
+          days: {
+            type: "number",
+            description: "Number of days to look back",
+          },
+        },
+        required: ["days"],
+      },
+    },
+    {
+      name: "get_feed_items_last_hours",
+      description: "Get items from a specific feed from the last X hours",
+      inputSchema: {
+        type: "object",
+        properties: {
+          feed_id: {
+            type: "string",
+            description: "Feed ID",
+          },
+          hours: {
+            type: "number",
+            description: "Number of hours to look back",
+          },
+        },
+        required: ["feed_id", "hours"],
+      },
+    },
+    {
+      name: "get_feed_items_last_days",
+      description: "Get items from a specific feed from the last X days",
+      inputSchema: {
+        type: "object",
+        properties: {
+          feed_id: {
+            type: "string",
+            description: "Feed ID",
+          },
+          days: {
+            type: "number",
+            description: "Number of days to look back",
+          },
+        },
+        required: ["feed_id", "days"],
+      },
+    },
+    {
+      name: "get_group_items_last_days",
+      description: "Get items from a group (category) from the last X days",
+      inputSchema: {
+        type: "object",
+        properties: {
+          group_id: {
+            type: "string",
+            description: "Group ID",
+          },
+          days: {
+            type: "number",
+            description: "Number of days to look back",
+          },
+        },
+        required: ["group_id", "days"],
       },
     },
     {
@@ -337,6 +536,61 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           }
         }
 
+        return {
+          content: [{
+            type: "text",
+            text: JSON.stringify(response, null, 2),
+          }],
+        };
+      }
+
+      case "get_items_last_hours": {
+        const { hours } = request.params.arguments as { hours: number };
+        const response = await client.getItemsFromLastHours(hours);
+        return {
+          content: [{
+            type: "text",
+            text: JSON.stringify(response, null, 2),
+          }],
+        };
+      }
+
+      case "get_items_last_days": {
+        const { days } = request.params.arguments as { days: number };
+        const response = await client.getItemsFromLastDays(days);
+        return {
+          content: [{
+            type: "text",
+            text: JSON.stringify(response, null, 2),
+          }],
+        };
+      }
+
+      case "get_feed_items_last_hours": {
+        const { feed_id, hours } = request.params.arguments as { feed_id: string; hours: number };
+        const response = await client.getFeedItemsFromLastHours(feed_id, hours);
+        return {
+          content: [{
+            type: "text",
+            text: JSON.stringify(response, null, 2),
+          }],
+        };
+      }
+
+      case "get_feed_items_last_days": {
+        const { feed_id, days } = request.params.arguments as { feed_id: string; days: number };
+        const response = await client.getFeedItemsFromLastDays(feed_id, days);
+        return {
+          content: [{
+            type: "text",
+            text: JSON.stringify(response, null, 2),
+          }],
+        };
+      }
+
+      case "get_group_items_last_days": {
+        const { group_id, days } = request.params.arguments as { group_id: string; days: number };
+        const response = await client.getGroupItemsFromLastDays(group_id, days);
         return {
           content: [{
             type: "text",
