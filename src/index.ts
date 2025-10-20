@@ -242,6 +242,61 @@ class FreshRSSClient {
     });
   }
 
+  /**
+   * Get just titles and URLs from feed items from the last X days
+   */
+  async getFeedTitlesFromLastDays(feedId: number | string, days: number): Promise<{ id: string; title: string; url: string; created_on_time: number }[]> {
+    const response = await this.getFeedItemsFromLastDays(feedId, days);
+    
+    if (!response.items || !Array.isArray(response.items)) {
+      return [];
+    }
+    
+    return response.items.map(item => ({
+      id: item.id,
+      title: item.title,
+      url: item.url,
+      created_on_time: item.created_on_time
+    }));
+  }
+
+  /**
+   * Get just titles and URLs from feed items from the last X hours
+   */
+  async getFeedTitlesFromLastHours(feedId: number | string, hours: number): Promise<{ id: string; title: string; url: string; created_on_time: number }[]> {
+    const response = await this.getFeedItemsFromLastHours(feedId, hours);
+    
+    if (!response.items || !Array.isArray(response.items)) {
+      return [];
+    }
+    
+    return response.items.map(item => ({
+      id: item.id,
+      title: item.title,
+      url: item.url,
+      created_on_time: item.created_on_time
+    }));
+  }
+
+  /**
+   * Get just titles and URLs from all items from the last X days
+   */
+  async getTitlesFromLastDays(days: number): Promise<{ id: string; title: string; url: string; feed_id: number; created_on_time: number }[]> {
+    const response = await this.getItemsFromLastDays(days);
+    
+    if (!response.items || !Array.isArray(response.items)) {
+      return [];
+    }
+    
+    return response.items.map(item => ({
+      id: item.id,
+      title: item.title,
+      url: item.url,
+      feed_id: item.feed_id,
+      created_on_time: item.created_on_time
+    }));
+  }
+
   // Mark item as read
   async markAsRead(itemId: string) {
     return this.request('', 'POST', {
@@ -426,6 +481,56 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
       },
     },
     {
+      name: "get_feed_titles_last_days",
+      description: "Get just titles and URLs from a specific feed from the last X days",
+      inputSchema: {
+        type: "object",
+        properties: {
+          feed_id: {
+            type: "string",
+            description: "Feed ID",
+          },
+          days: {
+            type: "number",
+            description: "Number of days to look back",
+          },
+        },
+        required: ["feed_id", "days"],
+      },
+    },
+    {
+      name: "get_feed_titles_last_hours",
+      description: "Get just titles and URLs from a specific feed from the last X hours",
+      inputSchema: {
+        type: "object",
+        properties: {
+          feed_id: {
+            type: "string",
+            description: "Feed ID",
+          },
+          hours: {
+            type: "number",
+            description: "Number of hours to look back",
+          },
+        },
+        required: ["feed_id", "hours"],
+      },
+    },
+    {
+      name: "get_titles_last_days",
+      description: "Get just titles and URLs from all items from the last X days",
+      inputSchema: {
+        type: "object",
+        properties: {
+          days: {
+            type: "number",
+            description: "Number of days to look back",
+          },
+        },
+        required: ["days"],
+      },
+    },
+    {
       name: "mark_item_read",
       description: "Mark an item as read",
       inputSchema: {
@@ -595,6 +700,39 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           content: [{
             type: "text",
             text: JSON.stringify(response, null, 2),
+          }],
+        };
+      }
+
+      case "get_feed_titles_last_days": {
+        const { feed_id, days } = request.params.arguments as { feed_id: string; days: number };
+        const titles = await client.getFeedTitlesFromLastDays(feed_id, days);
+        return {
+          content: [{
+            type: "text",
+            text: JSON.stringify(titles, null, 2),
+          }],
+        };
+      }
+
+      case "get_feed_titles_last_hours": {
+        const { feed_id, hours } = request.params.arguments as { feed_id: string; hours: number };
+        const titles = await client.getFeedTitlesFromLastHours(feed_id, hours);
+        return {
+          content: [{
+            type: "text",
+            text: JSON.stringify(titles, null, 2),
+          }],
+        };
+      }
+
+      case "get_titles_last_days": {
+        const { days } = request.params.arguments as { days: number };
+        const titles = await client.getTitlesFromLastDays(days);
+        return {
+          content: [{
+            type: "text",
+            text: JSON.stringify(titles, null, 2),
           }],
         };
       }
